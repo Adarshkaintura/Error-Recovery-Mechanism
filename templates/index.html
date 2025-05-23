@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Code Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/clike/clike.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/theme/dracula.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #2a2a3a, #3a3a4a);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ffffff;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            flex-wrap: wrap;
+        }
+
+        .editor, .output {
+            flex: 1;
+            min-width: 300px;
+            background: #353545;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .editor h2, .output h2 {
+            color: #ffb6c1;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .CodeMirror {
+            height: 400px !important;
+            border-radius: 5px;
+            font-size: 14px;
+            border: 1px solid #555;
+            background: #282a36 !important;
+            color: #f8f8f2 !important;
+        }
+
+        .CodeMirror pre {
+            color: #f8f8f2 !important;
+        }
+
+        textarea {
+            width: 100%;
+            height: 400px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #282a36;
+            color: #f8f8f2;
+            padding: 10px;
+            resize: none;
+        }
+
+        input[type="submit"] {
+            background: #ff5555;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background: #ff8787;
+        }
+
+        .output h3 {
+            color: #b0e0e6;
+            font-size: 1.2rem;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        .output pre {
+            background: #2a2a3a;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: #ffffff;
+            border: 1px solid #444;
+        }
+
+        .output img {
+            max-width: 100%;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+        }
+
+        .output ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .output li {
+            background: #2a2a3a;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            color: #ffd700;
+            font-size: 0.9rem;
+            border: 1px solid #444;
+        }
+
+        .output p {
+            color: #d8bfd8;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .editor, .output {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Smart Code Editor</h1>
+    <div class="container">
+        <div class="editor">
+            <h2>Code Editor</h2>
+            <form method="POST">
+                <textarea id="code" name="code">{{ code }}</textarea>
+                <input type="submit" value="Analyze">
+            </form>
+        </div>
+        <div class="output">
+            <h2>Analysis Output</h2>
+            <h3>Token Stream</h3>
+            <pre>{{ tokens if tokens else "No tokens generated." }}</pre>
+            <h3>Parse Tree</h3>
+            <pre>{{ parse_tree if parse_tree else "No parse tree generated." }}</pre>
+            {% if tree_image %}
+                <p>Image Path: {{ url_for('static', filename=tree_image) }}</p>
+                <img src="{{ url_for('static', filename=tree_image) }}" alt="Parse Tree">
+            {% else %}
+                <p>No parse tree image generated.</p>
+            {% endif %}
+            <h3>Semantic Errors & Suggestions</h3>
+            <ul>
+                {% for error in semantic_errors %}
+                    <li>{{ error }}</li>
+                {% else %}
+                    <li>No semantic errors.</li>
+                {% endfor %}
+            </ul>
+            <h3>Intermediate Code</h3>
+            <pre>{{ intermediate_code if intermediate_code else "No intermediate code generated." }}</pre>
+        </div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            try {
+                var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+                    mode: "text/x-csrc",
+                    lineNumbers: true,
+                    theme: "dracula",
+                    matchBrackets: true,
+                    lineWiseCopyCut: true,
+                    tabSize: 4,
+                    readOnly: false
+                });
+                console.log("CodeMirror initialized successfully");
+            } catch (error) {
+                console.error("CodeMirror initialization failed:", error);
+                document.getElementById("code").style.display = "block";
+            }
+        });
+    </script>
+</body>
+</html>
